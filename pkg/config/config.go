@@ -9,10 +9,9 @@ import (
 )
 
 type Config struct {
-	Env         string        `yaml:"env" env-default:"local"`
-	StoragePath string        `yaml:"storage_path"`
-	Token_ttl   time.Duration `yaml:"token_ttl"`
-	GRPC        GRPSconfig    `yaml:"grpc"`
+	Env         string     `yaml:"env" env-default:"local"`
+	StoragePath string     `yaml:"storage_path"`
+	GRPC        GRPSconfig `yaml:"grpc"`
 }
 
 type GRPSconfig struct {
@@ -21,7 +20,7 @@ type GRPSconfig struct {
 }
 
 func MustLoad() *Config {
-	path := fetchConfigPath()
+	path := getConfigPath()
 	if path == "" {
 		panic("config file path is empty")
 	}
@@ -36,7 +35,7 @@ func MustLoad() *Config {
 	return &cfg
 }
 
-func fetchConfigPath() string {
+func getConfigPath() string {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
