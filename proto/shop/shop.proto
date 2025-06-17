@@ -2,39 +2,17 @@ syntax = "proto3";
 
 package shop;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "kavshevnova.shop.v1;shopv1";
 
-service Shop {
-  // Регистрация и вход
-  rpc Register (RegisterRequest) returns (RegisterResponse);
-  rpc Login (LoginRequest) returns (LoginResponse);
-
-  // Работа с товарами
+service ShopService {
+  // Просмотр товаров пользователем
   rpc ListProducts (ListProductsRequest) returns (ListProductsResponse);
   rpc GetProductInfo (GetProductInfoRequest) returns (GetProductInfoResponse);
-
   // Покупки
   rpc MakeOrder (OrderRequest) returns (OrderResponse);
   rpc GetOrdersHistory (OrdersHistoryRequest) returns (OrdersHistoryResponse);
-}
-
-message RegisterRequest {
-  string email = 1;
-  string password = 2;
-}
-
-message RegisterResponse {
-  int64 user_id = 1;
-}
-
-message LoginRequest {
-  string email = 1;
-  string password = 2;
-}
-
-message LoginResponse {
-  int64 user_id = 1;
-  string status = 2;
 }
 
 message ListProductsRequest {
@@ -74,6 +52,7 @@ message OrderResponse {
   bool success = 1;
   int64 order_id = 2;
   float sum = 3;
+  google.protobuf.Timestamp order_time = 4;
 }
 
 message OrdersHistoryRequest {
@@ -90,4 +69,5 @@ message Order {
   int64 product_id = 3;
   int32 quantity = 4;
   float sum = 5;
+  google.protobuf.Timestamp order_time = 6;
 }
