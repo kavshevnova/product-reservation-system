@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kavshevnova/product-reservation-system/pkg/domain/models"
-	storageerrors "github.com/kavshevnova/product-reservation-system/pkg/storage"
 	"golang.org/x/crypto/bcrypt"
 	"log/slog"
 )
@@ -25,9 +24,7 @@ type UserProvider interface {
 }
 
 var (
-	//Credentials - Реквизиты для входа
 	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrUserExists         = errors.New("user already exists")
 )
 
 func New(
@@ -57,9 +54,9 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email, password string) (use
 
 	id, err := a.usrsaver.SaveUser(ctx, email, passHash)
 	if err != nil {
-		if errors.Is(err, ErrUserExists) {
+		if errors.Is(err, models.ErrUserExists) {
 			a.log.Warn("User already exists", slog.StringValue(err.Error()))
-			return 0, fmt.Errorf("%s: %w", op, ErrUserExists)
+			return 0, fmt.Errorf("%s: %w", op, models.ErrUserExists)
 		}
 		log.Error("Failed to save user", slog.StringValue(err.Error()))
 		return 0, fmt.Errorf("%s: %w", op, err)
@@ -77,7 +74,7 @@ func (a *Auth) LoginUser(ctx context.Context, email, password string) (success b
 
 	usr, err := a.usrprovider.User(ctx, email)
 	if err != nil {
-		if errors.Is(err, storageerrors.ErrUserNotFound) {
+		if errors.Is(err, models.ErrUserNotFound) {
 			a.log.Warn("User not found", slog.StringValue(err.Error()))
 			return false, fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 		}
