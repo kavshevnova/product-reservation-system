@@ -13,7 +13,7 @@ type StorageUsers struct {
 	db *sql.DB
 }
 
-func New(db *sql.DB) (*StorageUsers, error) {
+func NewUsersStorage(db *sql.DB) (*StorageUsers, error) {
 	return &StorageUsers{db: db}, nil
 }
 

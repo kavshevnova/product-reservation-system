@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kavshevnova/product-reservation-system/pkg/domain/models"
-	storageerrors "github.com/kavshevnova/product-reservation-system/pkg/storage"
 	"log/slog"
 	"strconv"
 )
@@ -23,14 +22,10 @@ type ProductStorage interface {
 }
 
 type InventoryManager interface {
-	BuyProduct(ctx context.Context, userID, productID int64, quantity int32) (*models.Order, error)
 	ReserveProduct(ctx context.Context, userID, productID int64, quantity int32) (*models.Order, error)
+	CancelReservation(ctx context.Context, orderID int64) error
+	ConfirmOrder(ctx context.Context, orderID int64) (*models.Order, error)
 }
-
-var (
-	ErrProductNotFound = errors.New("product not found")
-	ErrNotEnoughStock  = errors.New("not enough stock")
-)
 
 func New(log *slog.Logger, storage ProductStorage, inventory InventoryManager) *Shop {
 	return &Shop{
@@ -73,7 +68,7 @@ func (s *Shop) GetProductInfo(ctx context.Context, productID int64) (*models.Pro
 
 	product, err := s.storage.Product(ctx, productID)
 	if err != nil {
-		if errors.Is(err, storageerrors.ErrProductNotFound) {
+		if errors.Is(err, models.ErrProductNotFound) {
 			s.log.Warn("Product not found", slog.StringValue(err.Error()))
 			return nil, fmt.Errorf("%s: %w", op, err)
 		}
@@ -110,18 +105,21 @@ func (s *Shop) MakeOrder(ctx context.Context, userID, productID int64, quantity 
 		)
 	log.Info("Starting Buy Product")
 
-	product, err := s.GetProductInfo(ctx, productID)
-	if product.Stock == 0 {
-		log.Error("Product stock is zero", slog.String("productID", strconv.Itoa(int(productID)))
-		return nil, fmt.Errorf("%s: %w", op, ErrNotEnoughStock)
-	}
+	product, err := s.storage.Product(ctx, productID)
 	if err != nil {
-		log.Error("GetProduct failed", slog.String("error", err.Error()))
+		if errors.Is(err, models.ErrProductNotFound) {
+			log.Error("Product not found", slog.String("error", err.Error()))
+			return nil, fmt.Errorf("%s: %w", op, models.ErrProductNotFound)
+		}
+		log.Error("Buy Product failed", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	if product.Stock < quantity {
+		log.Error("Not enough stock", slog.String("Available", strconv.Itoa(int(product.Stock))))
+		return nil, fmt.Errorf("%s: %w", op, models.ErrNotEnoughStock)
 	}
 
 	log.Info("Product in stock")
-
 
 
 }

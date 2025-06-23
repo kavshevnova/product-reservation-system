@@ -6,6 +6,7 @@ CREATE TABLE orders (
     product_id INTEGER REFERENCES product(id),
     quantity INTEGER NOT NULL,
     sum DECIMAL(10, 2) NOT NULL,
+    status
     order_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 )
 -- +goose StatementEnd

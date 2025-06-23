@@ -55,7 +55,7 @@ func (s *ShopServerAPI) GetProductInfo(ctx context.Context, req *shopv1.GetProdu
 
 	product, err := s.shop.GetProductInfo(ctx, req.GetProductId())
 	if err != nil {
-		if errors.Is(err, shop.ErrProductNotFound) {
+		if errors.Is(err, models.ErrProductNotFound) {
 			return nil, status.Error(codes.NotFound, "product not found")
 		}
 		return nil, status.Error(codes.Internal, "failed to get product")
@@ -76,9 +76,9 @@ func (s *ShopServerAPI) MakeOrder(ctx context.Context, req *shopv1.OrderRequest)
 	order, err := s.shop.MakeOrder(ctx, req.GetUserId(), req.GetProductId(), req.GetQuantity())
 	if err != nil {
 		switch {
-		case errors.Is(err, shop.ErrProductNotFound):
+		case errors.Is(err, models.ErrProductNotFound):
 			return nil, status.Error(codes.NotFound, "product not found")
-		case errors.Is(err, shop.ErrNotEnoughStock):
+		case errors.Is(err, models.ErrNotEnoughStock):
 			return &shopv1.OrderResponse{Success: false}, nil
 		default:
 			return nil, status.Error(codes.Internal, "failed to make order")

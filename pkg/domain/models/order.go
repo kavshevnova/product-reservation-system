@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 type Order struct {
 	ID        int64
@@ -8,5 +11,10 @@ type Order struct {
 	ProductID int64
 	Quantity  int32
 	Sum       float32
+	Status    string
 	Time      time.Time
 }
+
+var (
+	ErrOrderAlreadyExists = errors.New("order already exists")
+)
