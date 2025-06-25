@@ -114,6 +114,83 @@ func (s *StorageProducts) ReserveProduct(ctx context.Context, userID, productID 
 	}, nil
 }
 
+func (s *StorageProducts) ConfirmOrder(ctx context.Context, orderID int64) (*models.Order, error) {
+	const op = "storage.shopstorage.ConfirmOrder"
+	const query = "UPDATE orders SET status = 'confirmed' WHERE id = $1 AND status = 'reserved' RETURNING id, user_id, product_id, quantity, sum"
+
+	var order models.Order
+	err := s.db.QueryRowContext(ctx, query, time.Now(), orderID).Scan(&order.ID, &order.UserID, &order.ProductID, &order.Quantity, &order.Sum)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, models.ErrOrderNotFound
+		}
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	order.Status = "confirmed"
+	order.Time = time.Now()
+	return &order, nil
+}
+
+func (s *StorageProducts) CancelReservation(ctx context.Context, orderID int64) error {
+	const op = "storage.shopstorage.CancelReservation"
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer tx.Rollback()
+
+	//Получаем информацию о резервации
+	var productID int64
+	var quantity int32
+	err = tx.QueryRowContext(ctx, `SELECT product_id, quantity FROM products WHERE id = $1 AND status = 'reserved' FOR UPDATE`, orderID).Scan(&productID, &quantity)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.ErrOrderNotFound
+		}
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	//Возвращаем товар на склад
+	_, err = tx.ExecContext(ctx, `UPDATE products SET quantity = quantity + $1 WHERE ID = $2`, quantity, productID)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	//Отменяем резервацию
+	_, err = tx.ExecContext(ctx, `UPDATE orders SET status = 'canceled' WHERE ID = $1`, orderID)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
+}
+
+func (s *StorageProducts) OrderHistory(ctx context.Context, userID int64) ([]models.Order, error) {
+	const op = "storage.shopstorage.OrderHistory"
+	const query = "SELECT id, user_id, product_id, quantity, sum, status, order_time FROM orders WHERE user_id = $1 ORDER BY order_time DESC"
+	rows, err := s.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	defer rows.Close()
+
+	var orders []models.Order
+	for rows.Next() {
+		var order models.Order
+		var time sql.NullTime
+		if err := rows.Scan(&order.ID, &order.UserID, &order.ProductID, &order.Quantity, &order.Sum, &time); err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+		if time.Valid {
+			order.Time = time.Time
+		}
+		orders = append(orders, order)
+	}
+	return orders, nil
+}
+
 func isDuplicateKeyError(err error) bool {
 	var pgErr *pq.Error
 	if errors.As(err, &pgErr) {
