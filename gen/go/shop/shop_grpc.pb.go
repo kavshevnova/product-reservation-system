@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -23,6 +24,7 @@ const (
 	ShopService_GetProductInfo_FullMethodName   = "/shop.ShopService/GetProductInfo"
 	ShopService_MakeOrder_FullMethodName        = "/shop.ShopService/MakeOrder"
 	ShopService_GetOrdersHistory_FullMethodName = "/shop.ShopService/GetOrdersHistory"
+	ShopService_ConfirmPayment_FullMethodName   = "/shop.ShopService/ConfirmPayment"
 )
 
 // ShopServiceClient is the client API for ShopService service.
@@ -33,8 +35,9 @@ type ShopServiceClient interface {
 	ListProducts(ctx context.Context, in *ListProductsRequest, opts ...grpc.CallOption) (*ListProductsResponse, error)
 	GetProductInfo(ctx context.Context, in *GetProductInfoRequest, opts ...grpc.CallOption) (*GetProductInfoResponse, error)
 	// Покупки
-	MakeOrder(ctx context.Context, in *OrderRequest, opts ...grpc.CallOption) (*OrderResponse, error)
+	MakeOrder(ctx context.Context, in *MakeOrderRequest, opts ...grpc.CallOption) (*MakeOrderResponse, error)
 	GetOrdersHistory(ctx context.Context, in *OrdersHistoryRequest, opts ...grpc.CallOption) (*OrdersHistoryResponse, error)
+	ConfirmPayment(ctx context.Context, in *PaymentConfirmation, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type shopServiceClient struct {
@@ -65,9 +68,9 @@ func (c *shopServiceClient) GetProductInfo(ctx context.Context, in *GetProductIn
 	return out, nil
 }
 
-func (c *shopServiceClient) MakeOrder(ctx context.Context, in *OrderRequest, opts ...grpc.CallOption) (*OrderResponse, error) {
+func (c *shopServiceClient) MakeOrder(ctx context.Context, in *MakeOrderRequest, opts ...grpc.CallOption) (*MakeOrderResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OrderResponse)
+	out := new(MakeOrderResponse)
 	err := c.cc.Invoke(ctx, ShopService_MakeOrder_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -85,6 +88,16 @@ func (c *shopServiceClient) GetOrdersHistory(ctx context.Context, in *OrdersHist
 	return out, nil
 }
 
+func (c *shopServiceClient) ConfirmPayment(ctx context.Context, in *PaymentConfirmation, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, ShopService_ConfirmPayment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ShopServiceServer is the server API for ShopService service.
 // All implementations must embed UnimplementedShopServiceServer
 // for forward compatibility.
@@ -93,8 +106,9 @@ type ShopServiceServer interface {
 	ListProducts(context.Context, *ListProductsRequest) (*ListProductsResponse, error)
 	GetProductInfo(context.Context, *GetProductInfoRequest) (*GetProductInfoResponse, error)
 	// Покупки
-	MakeOrder(context.Context, *OrderRequest) (*OrderResponse, error)
+	MakeOrder(context.Context, *MakeOrderRequest) (*MakeOrderResponse, error)
 	GetOrdersHistory(context.Context, *OrdersHistoryRequest) (*OrdersHistoryResponse, error)
+	ConfirmPayment(context.Context, *PaymentConfirmation) (*emptypb.Empty, error)
 	mustEmbedUnimplementedShopServiceServer()
 }
 
@@ -111,11 +125,14 @@ func (UnimplementedShopServiceServer) ListProducts(context.Context, *ListProduct
 func (UnimplementedShopServiceServer) GetProductInfo(context.Context, *GetProductInfoRequest) (*GetProductInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProductInfo not implemented")
 }
-func (UnimplementedShopServiceServer) MakeOrder(context.Context, *OrderRequest) (*OrderResponse, error) {
+func (UnimplementedShopServiceServer) MakeOrder(context.Context, *MakeOrderRequest) (*MakeOrderResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MakeOrder not implemented")
 }
 func (UnimplementedShopServiceServer) GetOrdersHistory(context.Context, *OrdersHistoryRequest) (*OrdersHistoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrdersHistory not implemented")
+}
+func (UnimplementedShopServiceServer) ConfirmPayment(context.Context, *PaymentConfirmation) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ConfirmPayment not implemented")
 }
 func (UnimplementedShopServiceServer) mustEmbedUnimplementedShopServiceServer() {}
 func (UnimplementedShopServiceServer) testEmbeddedByValue()                     {}
@@ -175,7 +192,7 @@ func _ShopService_GetProductInfo_Handler(srv interface{}, ctx context.Context, d
 }
 
 func _ShopService_MakeOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(OrderRequest)
+	in := new(MakeOrderRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -187,7 +204,7 @@ func _ShopService_MakeOrder_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: ShopService_MakeOrder_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ShopServiceServer).MakeOrder(ctx, req.(*OrderRequest))
+		return srv.(ShopServiceServer).MakeOrder(ctx, req.(*MakeOrderRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -206,6 +223,24 @@ func _ShopService_GetOrdersHistory_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ShopServiceServer).GetOrdersHistory(ctx, req.(*OrdersHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ShopService_ConfirmPayment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PaymentConfirmation)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ShopServiceServer).ConfirmPayment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ShopService_ConfirmPayment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ShopServiceServer).ConfirmPayment(ctx, req.(*PaymentConfirmation))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -232,6 +267,10 @@ var ShopService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetOrdersHistory",
 			Handler:    _ShopService_GetOrdersHistory_Handler,
+		},
+		{
+			MethodName: "ConfirmPayment",
+			Handler:    _ShopService_ConfirmPayment_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

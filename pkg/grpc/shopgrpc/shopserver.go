@@ -5,11 +5,10 @@ import (
 	"errors"
 	shopv1 "github.com/kavshevnova/product-reservation-system/gen/go/shop"
 	"github.com/kavshevnova/product-reservation-system/pkg/domain/models"
-	"github.com/kavshevnova/product-reservation-system/pkg/services/shop"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Shop interface {
@@ -17,6 +16,7 @@ type Shop interface {
 	GetProductInfo(ctx context.Context, productID int64) (*models.Product, error)
 	MakeOrder(ctx context.Context, userID, productID int64, quantity int32) (*models.Order, error)
 	GetOrdersHistory(ctx context.Context, userID int64) ([]models.Order, error)
+	ConfirmPayment(ctx context.Context, orderID int64, success bool) error
 }
 
 type ShopServerAPI struct {
@@ -69,7 +69,7 @@ func (s *ShopServerAPI) GetProductInfo(ctx context.Context, req *shopv1.GetProdu
 
 }
 
-func (s *ShopServerAPI) MakeOrder(ctx context.Context, req *shopv1.OrderRequest) (*shopv1.OrderResponse, error) {
+func (s *ShopServerAPI) MakeOrder(ctx context.Context, req *shopv1.MakeOrderRequest) (*shopv1.MakeOrderResponse, error) {
 	if err := ValidateOrderRequest(req); err != nil {
 		return nil, err
 	}
@@ -79,18 +79,16 @@ func (s *ShopServerAPI) MakeOrder(ctx context.Context, req *shopv1.OrderRequest)
 		case errors.Is(err, models.ErrProductNotFound):
 			return nil, status.Error(codes.NotFound, "product not found")
 		case errors.Is(err, models.ErrNotEnoughStock):
-			return &shopv1.OrderResponse{Success: false}, nil
+			return &shopv1.MakeOrderResponse{OrderId: order.ID, Status: "Not enough stock"}, nil
 		default:
 			return nil, status.Error(codes.Internal, "failed to make order")
 		}
 	}
-	return &shopv1.OrderResponse{
-		Success:   true,
-		OrderId:   order.ID,
-		Sum:       order.Sum,
-		OrderTime: timestamppb.Now(),
+	return &shopv1.MakeOrderResponse{
+		OrderId:    order.ID,
+		PaymentURL: order.PaymentURL,
+		Status:     order.Status,
 	}, nil
-	//TODO: дописать id товара
 }
 
 func (s *ShopServerAPI) GetOrdersHistory(ctx context.Context, req *shopv1.OrdersHistoryRequest) (*shopv1.OrdersHistoryResponse, error) {
@@ -114,6 +112,13 @@ func (s *ShopServerAPI) GetOrdersHistory(ctx context.Context, req *shopv1.Orders
 	return &shopv1.OrdersHistoryResponse{Orders: listOrders}, nil
 }
 
+func (s *ShopServerAPI) ConfirmPayment(ctx context.Context, req *shopv1.PaymentConfirmation) (*emptypb.Empty, error) {
+	if err := s.shop.ConfirmPayment(ctx, req.GetOrderId(), req.GetSuccess()); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &emptypb.Empty{}, nil
+}
+
 func (s *ShopServerAPI) mustEmbedUnimplementedShopServiceServer() {}
 
 func ValidateListProducts(request *shopv1.ListProductsRequest) error {
@@ -126,7 +131,7 @@ func ValidateListProducts(request *shopv1.ListProductsRequest) error {
 	return nil
 }
 
-func ValidateOrderRequest(request *shopv1.OrderRequest) error {
+func ValidateOrderRequest(request *shopv1.MakeOrderRequest) error {
 	if request.GetProductId() <= 0 {
 		return status.Error(codes.InvalidArgument, "product_id is required")
 	}

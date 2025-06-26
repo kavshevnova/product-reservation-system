@@ -3,6 +3,7 @@ syntax = "proto3";
 package shop;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "kavshevnova.shop.v1;shopv1";
 
@@ -11,9 +12,11 @@ service ShopService {
   rpc ListProducts (ListProductsRequest) returns (ListProductsResponse);
   rpc GetProductInfo (GetProductInfoRequest) returns (GetProductInfoResponse);
   // Покупки
-  rpc MakeOrder (OrderRequest) returns (OrderResponse);
+  rpc MakeOrder (MakeOrderRequest) returns (MakeOrderResponse);
   rpc GetOrdersHistory (OrdersHistoryRequest) returns (OrdersHistoryResponse);
+  rpc ConfirmPayment (PaymentConfirmation) returns (google.protobuf.Empty);
 }
+
 
 message ListProductsRequest {
   int32 limit = 1;
@@ -42,17 +45,16 @@ message Product {
   int32 stock = 4;
 }
 
-message OrderRequest {
+message MakeOrderRequest {
   int64 user_id = 1;
   int64 product_id = 2;
   int32 quantity = 3;
 }
 
-message OrderResponse {
-  bool success = 1;
-  int64 order_id = 2;
-  float sum = 3;
-  google.protobuf.Timestamp order_time = 4;
+message MakeOrderResponse {
+  int64 order_id = 1;
+  string status =2;
+  string paymentURL = 3;
 }
 
 message OrdersHistoryRequest {
@@ -70,4 +72,12 @@ message Order {
   int32 quantity = 4;
   float sum = 5;
   google.protobuf.Timestamp order_time = 6;
+  string status = 7;
 }
+
+message PaymentConfirmation {
+  int64 order_id = 1;
+  bool success = 2;  // true если оплата прошла
+}
+
+message Empty {}

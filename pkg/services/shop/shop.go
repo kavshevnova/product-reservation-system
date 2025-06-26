@@ -102,8 +102,10 @@ func (s *Shop) MakeOrder(ctx context.Context, userID, productID int64, quantity 
 		slog.String("productID", strconv.Itoa(int(userID))),
 		slog.String("productID", strconv.Itoa(int(productID))),
 		slog.String("quantity", strconv.Itoa(int(quantity))),
-		)
+	)
 	log.Info("Starting Buy Product")
+
+	//Проверяем наличие товара
 
 	product, err := s.storage.Product(ctx, productID)
 	if err != nil {
@@ -111,7 +113,7 @@ func (s *Shop) MakeOrder(ctx context.Context, userID, productID int64, quantity 
 			log.Error("Product not found", slog.String("error", err.Error()))
 			return nil, fmt.Errorf("%s: %w", op, models.ErrProductNotFound)
 		}
-		log.Error("Buy Product failed", slog.String("error", err.Error()))
+		log.Error("Failed to get product info", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	if product.Stock < quantity {
@@ -121,5 +123,54 @@ func (s *Shop) MakeOrder(ctx context.Context, userID, productID int64, quantity 
 
 	log.Info("Product in stock")
 
+	//Резервируем товар
 
+	order, err := s.inventory.ReserveProduct(ctx, userID, productID, quantity)
+	if err != nil {
+		log.Error("Failed to reserve product", slog.String("error", err.Error()))
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("Reserve Product done", slog.String("productID", strconv.Itoa(int(order.ID))))
+
+	//Возвращаем заказ в статусе "ожидает оплаты"
+	return &models.Order{
+		ID: order.ID,
+		Status: "waiting_payment",
+		PaymentURL: s.generatePaymentURL(order.ID),
+	}, nil
 }
+
+func (s *Shop) generatePaymentURL(orderID int64) string {
+	return fmt.Sprintf("https://pay.example.com?order_id=%d", orderID)
+}
+
+func (s *Shop) ConfirmPayment(ctx context.Context, orderID int64, success bool) error {
+	const op = "services.shop.ConfirmPayment"
+	log := s.log.With(
+		slog.String("op", op),
+		slog.Int64("order_id", orderID),
+		slog.Bool("success", success),
+	)
+
+	if success {
+		// Подтверждаем заказ
+		_, err := s.inventory.ConfirmOrder(ctx, orderID)
+		if err != nil {
+			log.Error("failed to confirm order", slog.String("error", err.Error()))
+			return fmt.Errorf("%s: %w", op, err)
+		}
+		log.Info("payment confirmed")
+	} else {
+		// Отменяем резервацию
+		err := s.inventory.CancelReservation(ctx, orderID)
+		if err != nil {
+			log.Error("failed to cancel reservation", slog.String("error", err.Error()))
+			return fmt.Errorf("%s: %w", op, err)
+		}
+		log.Info("payment failed, reservation canceled")
+	}
+
+	return nil
+}
+
+
