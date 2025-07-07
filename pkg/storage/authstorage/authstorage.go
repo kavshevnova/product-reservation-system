@@ -13,7 +13,12 @@ type StorageUsers struct {
 	db *sql.DB
 }
 
-func NewUsersStorage(db *sql.DB) (*StorageUsers, error) {
+func NewUsersStorage(storagePath string) (*StorageUsers, error) {
+	const op = "storage.NewUsersStorage"
+	db, err := sql.Open("sql", storagePath)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
 	return &StorageUsers{db: db}, nil
 }
 

@@ -18,7 +18,7 @@ type Shop struct {
 type ProductStorage interface {
 	ListProducts(ctx context.Context, limit, offset int32) ([]models.Product, error)
 	Product(ctx context.Context, productID int64) (*models.Product, error)
-	OrderHistory(ctx context.Context, userID int64) ([]models.Order, error)
+	GetOrderHistory(ctx context.Context, userID int64) ([]models.Order, error)
 }
 
 type InventoryManager interface {
@@ -85,7 +85,7 @@ func (s *Shop) GetOrderHistory(ctx context.Context, userID int64) ([]models.Orde
 	log := s.log.With(slog.String("operation", op), slog.String("userID", strconv.Itoa(int(userID))))
 	log.Info("Starting Get OrderHistory")
 
-	orders, err := s.storage.OrderHistory(ctx, userID)
+	orders, err := s.storage.GetOrderHistory(ctx, userID)
 	if err != nil {
 		log.Error("GetOrderHistory failed", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("%s: %w", op, err)

@@ -106,7 +106,6 @@ func (s *ShopServerAPI) GetOrdersHistory(ctx context.Context, req *shopv1.Orders
 			ProductId: orders.ProductID,
 			Quantity:  orders.Quantity,
 			Sum:       orders.Sum,
-			OrderTime: orders.Time, //TODO: тут ошибка
 		})
 	}
 	return &shopv1.OrdersHistoryResponse{Orders: listOrders}, nil

@@ -14,7 +14,12 @@ type StorageProducts struct {
 	db *sql.DB
 }
 
-func NewShopStorage(db *sql.DB) (*StorageProducts, error) {
+func NewShopStorage(storagePath string) (*StorageProducts, error) {
+	const op = "storage.NewShopStorage"
+	db, err := sql.Open("sql", storagePath)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
 	return &StorageProducts{db: db}, nil
 }
 
@@ -167,7 +172,7 @@ func (s *StorageProducts) CancelReservation(ctx context.Context, orderID int64) 
 	return nil
 }
 
-func (s *StorageProducts) OrderHistory(ctx context.Context, userID int64) ([]models.Order, error) {
+func (s *StorageProducts) GetOrderHistory(ctx context.Context, userID int64) ([]models.Order, error) {
 	const op = "storage.shopstorage.OrderHistory"
 	const query = "SELECT id, user_id, product_id, quantity, sum, status, order_time FROM orders WHERE user_id = $1 ORDER BY order_time DESC"
 	rows, err := s.db.QueryContext(ctx, query, userID)

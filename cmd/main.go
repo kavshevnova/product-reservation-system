@@ -13,8 +13,8 @@ func main() {
 
 	logger := SetUpLogger(cfg.Env)
 	logger.Info("Стартуем", slog.Any("Config", cfg))
-	//TODO: сделать grpc файлы
-	//TODO: сделать все остальное
+	application :=
+
 }
 
 func SetUpLogger(env string) *slog.Logger {
