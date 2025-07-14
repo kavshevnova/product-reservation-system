@@ -59,7 +59,7 @@ func (a *App) Run() error {
 
 func (a *App) Stop() {
 	const op = "grpcApp.Stop"
-	log := a.logger.With(slog.String("operation", op), slog.Int("port", a.port))
+	a.logger.With(slog.String("operation", op), slog.Int("port", a.port))
 
 	a.grpc.GracefulStop()
 }

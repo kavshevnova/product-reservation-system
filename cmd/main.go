@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/kavshevnova/product-reservation-system/pkg/app"
 	"github.com/kavshevnova/product-reservation-system/pkg/config"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -13,8 +16,17 @@ func main() {
 
 	logger := SetUpLogger(cfg.Env)
 	logger.Info("Стартуем", slog.Any("Config", cfg))
-	application :=
-
+	application := app.New(logger, cfg.GRPC.Port, cfg.StoragePath)
+	go func() {
+		application.GRPCsrv.MustStart()
+		logger.Info("starting gRPC server")
+	}()
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+	<-stop
+	logger.Info("starting graceful shutdown")
+	application.GRPCsrv.Stop()
+	logger.Info("graceful shutdown complete")
 }
 
 func SetUpLogger(env string) *slog.Logger {

@@ -79,7 +79,7 @@ func (s *Shop) GetProductInfo(ctx context.Context, productID int64) (*models.Pro
 	return product, nil
 }
 
-func (s *Shop) GetOrderHistory(ctx context.Context, userID int64) ([]models.Order, error) {
+func (s *Shop) GetOrdersHistory(ctx context.Context, userID int64) ([]models.Order, error) {
 	const op = "shop.OrderHistory"
 
 	log := s.log.With(slog.String("operation", op), slog.String("userID", strconv.Itoa(int(userID))))
@@ -90,7 +90,7 @@ func (s *Shop) GetOrderHistory(ctx context.Context, userID int64) ([]models.Orde
 		log.Error("GetOrderHistory failed", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	log.Info(("Get OrderHistory done"), slog.Int("count", len(orders))
+	log.Info(("Get OrderHistory done"), slog.Int("count", len(orders)))
 	return orders, nil
 }
 
@@ -134,8 +134,8 @@ func (s *Shop) MakeOrder(ctx context.Context, userID, productID int64, quantity 
 
 	//Возвращаем заказ в статусе "ожидает оплаты"
 	return &models.Order{
-		ID: order.ID,
-		Status: "waiting_payment",
+		ID:         order.ID,
+		Status:     "waiting_payment",
 		PaymentURL: s.generatePaymentURL(order.ID),
 	}, nil
 }
@@ -172,5 +172,3 @@ func (s *Shop) ConfirmPayment(ctx context.Context, orderID int64, success bool) 
 
 	return nil
 }
-
-

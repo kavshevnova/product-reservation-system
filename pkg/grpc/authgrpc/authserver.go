@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	authv1 "github.com/kavshevnova/product-reservation-system/gen/go/auth"
+	"github.com/kavshevnova/product-reservation-system/pkg/domain/models"
 	"github.com/kavshevnova/product-reservation-system/pkg/services/auth"
-	storageerrors "github.com/kavshevnova/product-reservation-system/pkg/storage"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,7 +32,7 @@ func (a *AuthServerAPI) Register(ctx context.Context, request *authv1.RegisterRe
 	}
 	userID, err := a.auth.RegisterNewUser(ctx, request.GetEmail(), request.GetPassword())
 	if err != nil {
-		if errors.Is(err, storageerrors.ErrUserExists) {
+		if errors.Is(err, models.ErrUserExists) {
 			return nil, status.Error(codes.AlreadyExists, "user already exists")
 		}
 		return nil, status.Error(codes.Internal, "internal server error")
@@ -73,4 +73,5 @@ func ValidateLogin(request *authv1.LoginRequest) error {
 	if request.GetPassword() == "" {
 		return status.Error(codes.InvalidArgument, "missing password")
 	}
+	return nil
 }

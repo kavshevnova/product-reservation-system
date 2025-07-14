@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/kavshevnova/product-reservation-system/pkg/domain/models"
 	"github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type StorageUsers struct {
@@ -14,8 +15,8 @@ type StorageUsers struct {
 }
 
 func NewUsersStorage(storagePath string) (*StorageUsers, error) {
-	const op = "storage.NewUsersStorage"
-	db, err := sql.Open("sql", storagePath)
+	const op = "storages.NewUsersStorage"
+	db, err := sql.Open("sqlite3", storagePath)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -23,7 +24,7 @@ func NewUsersStorage(storagePath string) (*StorageUsers, error) {
 }
 
 func (s *StorageUsers) SaveUser(ctx context.Context, email string, passhash []byte) (uid int64, err error) {
-	const op = "storage.authstorage.SaveUser"
+	const op = "storages.authstorage.SaveUser"
 	const query = "INSERT INTO users (email, passhash) VALUES ($1, $2) RETURNING id"
 	var id int64
 	err = s.db.QueryRowContext(ctx, query, email, passhash).Scan(&id)
@@ -37,7 +38,7 @@ func (s *StorageUsers) SaveUser(ctx context.Context, email string, passhash []by
 }
 
 func (s *StorageUsers) User(ctx context.Context, email string) (models.User, error) {
-	const op = "storage.authstorage.User"
+	const op = "storages.authstorage.User"
 	const query = "SELECT id, email, passhash FROM users WHERE email = $1"
 
 	var user models.User

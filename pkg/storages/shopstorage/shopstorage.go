@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/kavshevnova/product-reservation-system/pkg/domain/models"
 	"github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 	"time"
 )
 
@@ -14,9 +15,9 @@ type StorageProducts struct {
 	db *sql.DB
 }
 
-func NewShopStorage(storagePath string) (*StorageProducts, error) {
-	const op = "storage.NewShopStorage"
-	db, err := sql.Open("sql", storagePath)
+func NewShopStorage(storagepath string) (*StorageProducts, error) {
+	const op = "storages.NewShopStorage"
+	db, err := sql.Open("sqlite3", storagepath)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -24,7 +25,7 @@ func NewShopStorage(storagePath string) (*StorageProducts, error) {
 }
 
 func (s *StorageProducts) ListProducts(ctx context.Context, limit, offset int32) ([]models.Product, error) {
-	const op = "storage.shopstorage.ListProducts"
+	const op = "storages.shopstorage.ListProducts"
 	const query = "SELECT ProductID, Name, Price, Stock FROM products ORDER BY productID LIMIT $1 OFFSET $2"
 
 	if limit <= 0 {
@@ -52,7 +53,7 @@ func (s *StorageProducts) ListProducts(ctx context.Context, limit, offset int32)
 }
 
 func (s *StorageProducts) Product(ctx context.Context, productID int64) (*models.Product, error) {
-	const op = "storage.shopstorage.Product"
+	const op = "storages.shopstorage.Product"
 	const query = "SELECT ProductID, Name, Price, Stock FROM products WHERE ProductID = $1"
 
 	var product models.Product
@@ -68,7 +69,7 @@ func (s *StorageProducts) Product(ctx context.Context, productID int64) (*models
 }
 
 func (s *StorageProducts) ReserveProduct(ctx context.Context, userID, productID int64, quantity int32) (*models.Order, error) {
-	const op = "storage.shopstorage.ReserveProduct"
+	const op = "storages.shopstorage.ReserveProduct"
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
@@ -120,7 +121,7 @@ func (s *StorageProducts) ReserveProduct(ctx context.Context, userID, productID 
 }
 
 func (s *StorageProducts) ConfirmOrder(ctx context.Context, orderID int64) (*models.Order, error) {
-	const op = "storage.shopstorage.ConfirmOrder"
+	const op = "storages.shopstorage.ConfirmOrder"
 	const query = "UPDATE orders SET status = 'confirmed' WHERE id = $1 AND status = 'reserved' RETURNING id, user_id, product_id, quantity, sum"
 
 	var order models.Order
@@ -137,7 +138,7 @@ func (s *StorageProducts) ConfirmOrder(ctx context.Context, orderID int64) (*mod
 }
 
 func (s *StorageProducts) CancelReservation(ctx context.Context, orderID int64) error {
-	const op = "storage.shopstorage.CancelReservation"
+	const op = "storages.shopstorage.CancelReservation"
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
@@ -173,7 +174,7 @@ func (s *StorageProducts) CancelReservation(ctx context.Context, orderID int64) 
 }
 
 func (s *StorageProducts) GetOrderHistory(ctx context.Context, userID int64) ([]models.Order, error) {
-	const op = "storage.shopstorage.OrderHistory"
+	const op = "storages.shopstorage.OrderHistory"
 	const query = "SELECT id, user_id, product_id, quantity, sum, status, order_time FROM orders WHERE user_id = $1 ORDER BY order_time DESC"
 	rows, err := s.db.QueryContext(ctx, query, userID)
 	if err != nil {

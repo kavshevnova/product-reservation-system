@@ -4,8 +4,8 @@ import (
 	grpcapp "github.com/kavshevnova/product-reservation-system/pkg/app/grpc"
 	"github.com/kavshevnova/product-reservation-system/pkg/services/auth"
 	"github.com/kavshevnova/product-reservation-system/pkg/services/shop"
-	"github.com/kavshevnova/product-reservation-system/pkg/storage/authstorage"
-	"github.com/kavshevnova/product-reservation-system/pkg/storage/shopstorage"
+	"github.com/kavshevnova/product-reservation-system/pkg/storages/authstorage"
+	"github.com/kavshevnova/product-reservation-system/pkg/storages/shopstorage"
 	"log/slog"
 )
 
@@ -16,21 +16,21 @@ type App struct {
 func New(
 	log *slog.Logger,
 	grpcport int,
-	authStoragePath string,
-	shopStoragePath string,
+	storagepath string,
 ) *App {
 
-	storageauth, err := authstorage.NewUsersStorage(authStoragePath)
-	if err != nil {
-		panic(err)
-	}
-	storageshop, err := shopstorage.NewShopStorage(shopStoragePath)
+	storageAuth, err := authstorage.NewUsersStorage(storagepath)
 	if err != nil {
 		panic(err)
 	}
 
-	authService := auth.New(log, storageauth, storageauth)
-	shopService := shop.New(log, storageshop, storageshop)
+	storageShop, err := shopstorage.NewShopStorage(storagepath)
+	if err != nil {
+		panic(err)
+	}
+
+	authService := auth.New(log, storageAuth, storageAuth)
+	shopService := shop.New(log, storageShop, storageShop)
 
 	grpcApp := grpcapp.New(log, authService, shopService, grpcport)
 
