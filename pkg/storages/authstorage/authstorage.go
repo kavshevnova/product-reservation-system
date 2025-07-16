@@ -2,66 +2,94 @@ package authstorage
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
+	"github.com/go-redis/redis/v8"
+	_ "github.com/go-redis/redis/v8"
 	"github.com/kavshevnova/product-reservation-system/pkg/domain/models"
-	"github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
+	"time"
 )
 
 type StorageUsers struct {
-	db *sql.DB
+	client *redis.Client
 }
 
-func NewUsersStorage(storagePath string) (*StorageUsers, error) {
+func NewUsersStorage(addr, password string, db int) (*StorageUsers, error) {
 	const op = "storages.NewUsersStorage"
-	db, err := sql.Open("sqlite3", storagePath)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+
+	client := redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: password,
+		DB:       db,
+	})
+
+	//Проверяем подключение
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := client.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("%s %s", op, err)
 	}
-	return &StorageUsers{db: db}, nil
+	return &StorageUsers{client: client}, nil
 }
 
 func (s *StorageUsers) SaveUser(ctx context.Context, email string, passhash []byte) (uid int64, err error) {
 	const op = "storages.authstorage.SaveUser"
-	const query = "INSERT INTO users (email, passhash) VALUES ($1, $2) RETURNING id"
-	var id int64
-	err = s.db.QueryRowContext(ctx, query, email, passhash).Scan(&id)
-	if err != nil {
-		if isDuplicateKeyError(err) {
-			return 0, fmt.Errorf("%s: %w", op, models.ErrUserExists)
-		}
-		return 0, fmt.Errorf("%s: %w", op, err)
+
+	//Проверяем существование пользователя
+	if exists, err := s.client.Exists(ctx, "user:email:"+email).Result(); err != nil {
+		return 0, fmt.Errorf("%s %s", op, err)
+	} else if exists == 1 {
+		return 0, models.ErrUserExists
 	}
-	return id, nil
+
+	//Формируем id
+	uid, err = s.client.Incr(ctx, "global:user:id").Result()
+	if err != nil {
+		return 0, fmt.Errorf("%s %s", op, err)
+	}
+
+	//Сохраняем данные пользователя
+	userData := map[string]interface{}{
+		"id":       uid,
+		"email":    email,
+		"passhash": passhash,
+	}
+
+	//Используем транзакцию для атомарности
+	_, err = s.client.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+		pipe.HMSet(ctx, fmt.Sprintf("user:%d", uid), userData) //создаем хэш в редди с ключом id и сохраняем данные пользователя в виде полей хэша
+		pipe.Set(ctx, "user:email:"+email, uid, 0)             //создаем для поиска по email
+		return nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("%s %s", op, err)
+	}
+	return uid, nil
 }
 
 func (s *StorageUsers) User(ctx context.Context, email string) (models.User, error) {
 	const op = "storages.authstorage.User"
-	const query = "SELECT id, email, passhash FROM users WHERE email = $1"
 
-	var user models.User
-	err := s.db.QueryRowContext(ctx, query, email).Scan(
-		&user.UserID,
-		&user.Email,
-		&user.Passhash,
-	)
+	//Получаем id пользователя по email
+	uid, err := s.client.Get(ctx, "user:email:"+email).Int64()
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if err == redis.Nil {
 			return models.User{}, fmt.Errorf("%s: %w", op, models.ErrUserNotFound)
 		}
-		return models.User{}, fmt.Errorf("%s: %w", op, err)
+		return models.User{}, fmt.Errorf("%s %s", op, err)
+	}
+
+	result, err := s.client.HGetAll(ctx, fmt.Sprintf("user:%d", uid)).Result()
+	if err != nil {
+		return models.User{}, fmt.Errorf("%s %s", op, err)
+	}
+	if len(result) == 0 {
+		return models.User{}, fmt.Errorf("%s: %w", op, models.ErrUserNotFound)
+	}
+
+	user := models.User{
+		UserID:   uid,
+		Email:    result["email"],
+		Passhash: []byte(result["passhash"]),
 	}
 	return user, nil
-}
-
-// Вспомогательная функция для проверки ошибки дублирования
-func isDuplicateKeyError(err error) bool {
-	// Для PostgreSQL
-	var pgErr *pq.Error
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23505" // unique_violation
-	}
-	return false
 }

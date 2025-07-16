@@ -19,7 +19,11 @@ func New(
 	storagepath string,
 ) *App {
 
-	storageAuth, err := authstorage.NewUsersStorage(storagepath)
+	addr := "localhost:6379"
+	password := ""
+	db := 0
+
+	storageAuth, err := authstorage.NewUsersStorage(addr, password, db)
 	if err != nil {
 		panic(err)
 	}
