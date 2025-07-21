@@ -4,32 +4,33 @@ import (
 	"context"
 	"database/sql"
 	"flag"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
 	_ "github.com/pressly/goose/v3"
 	"log"
 )
 
 func main() {
-	var storagePath, migrationsDir, command string
-	flag.StringVar(&storagePath, "storage-path", "./storage/storage.db", "path to SQLitedatabase")
+	var dsn, migrationsDir, command string
+	flag.StringVar(&dsn, "DataSoursName", "host=localhost port=5433 user=postgres password=mysecretpassword dbname=postgres sslmode=disable", "path to postgres database")
 	flag.StringVar(&migrationsDir, "migrations-dir", "./migrations", "path to migrations directory")
 	flag.StringVar(&command, "command", "up", "goose command (up, down, status)")
 	flag.Parse()
 
-	if storagePath == "" {
+	if dsn == "" {
 		panic("--storage-path is required")
 	}
 	if migrationsDir == "" {
 		panic("--migrations-path is required")
 	}
-	db, err := sql.Open("sqlite3", storagePath)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		log.Fatalf("failed to open database:%v", err)
 	}
 	defer db.Close()
 
-	goose.SetDialect("sqlite3")
+	goose.SetDialect("postgres")
 
 	goose.SetVerbose(true)
 

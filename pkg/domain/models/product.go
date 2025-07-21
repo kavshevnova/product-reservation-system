@@ -3,10 +3,10 @@ package models
 import "errors"
 
 type Product struct {
-	ProductID int64
-	Name      string
-	Price     float32
-	Stock     int32
+	ProductID int64   `db:"product_id"`
+	Name      string  `db:"name"`
+	Price     float32 `db:"price"`
+	Stock     int32   `db:"stock"`
 }
 
 var (

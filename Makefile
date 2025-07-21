@@ -2,7 +2,7 @@ PROJECT_NAME := product-reservation-system
 MIGRATOR_DIR := ./cmd/migrator
 MIGRATIONS_DIR := ./migrations
 APP_DIR := ./cmd
-STORAGE_PATH := ./storage/storage.db
+STORAGE_DSN := "host=localhost port=5433 user=postgres password=mysecretpassword dbname=postgres sslmode=disable"
 
 GO := go
 GO_BUILD := $(GO) build
@@ -10,7 +10,7 @@ GO_RUN := $(GO) run
 GO_TEST := $(GO) test -v ./...
 GO_MOD_TIDY := &(GO) mod tidy
 
-MIGRATE_UP := $(GO_RUN) $(MIGRATOR_DIR) -command=up
+MIGRATE_UP := $(GO_RUN) $(MIGRATOR_DIR) -command=up 
 MIGRATE_DOWN := $(GO_RUN) $(MIGRATOR_DIR) -command=down
 MIGRATE_STATUS := $(GO_RUN) $(MIGRATOR_DIR) -command=status
 

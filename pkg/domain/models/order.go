@@ -6,13 +6,13 @@ import (
 )
 
 type Order struct {
-	ID         int64
-	UserID     int64
-	ProductID  int64
-	Quantity   int32
-	Sum        float32
-	Status     string
-	Time       time.Time
+	ID         int64     `db:"order_id"`
+	UserID     int64     `db:"user_id"`
+	ProductID  int64     `db:"product_id"`
+	Quantity   int32     `db:"quantity"`
+	Sum        float32   `db:"sum"`
+	Status     string    `db:"status"`
+	Time       time.Time `db:"time"`
 	PaymentURL string
 }
 

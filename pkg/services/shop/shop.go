@@ -99,7 +99,7 @@ func (s *Shop) MakeOrder(ctx context.Context, userID, productID int64, quantity 
 
 	log := s.log.With(
 		slog.String("operation", op),
-		slog.String("productID", strconv.Itoa(int(userID))),
+		slog.String("userID", strconv.Itoa(int(userID))),
 		slog.String("productID", strconv.Itoa(int(productID))),
 		slog.String("quantity", strconv.Itoa(int(quantity))),
 	)

@@ -5,20 +5,23 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"github.com/kavshevnova/product-reservation-system/pkg/domain/models"
 	"github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
 	"time"
 )
 
 type StorageProducts struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewShopStorage(storagepath string) (*StorageProducts, error) {
+func NewShopStorage(dsn string) (*StorageProducts, error) {
 	const op = "storages.NewShopStorage"
-	db, err := sql.Open("sqlite3", storagepath)
+	db, err := sqlx.Connect("postgres", dsn)
 	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	return &StorageProducts{db: db}, nil
@@ -26,7 +29,7 @@ func NewShopStorage(storagepath string) (*StorageProducts, error) {
 
 func (s *StorageProducts) ListProducts(ctx context.Context, limit, offset int32) ([]models.Product, error) {
 	const op = "storages.shopstorage.ListProducts"
-	const query = "SELECT ProductID, Name, Price, Stock FROM products ORDER BY productID LIMIT $1 OFFSET $2"
+	const query = "SELECT product_id, name, price, stock FROM products ORDER BY product_id LIMIT $1 OFFSET $2"
 
 	if limit <= 0 {
 		limit = 10
@@ -54,10 +57,10 @@ func (s *StorageProducts) ListProducts(ctx context.Context, limit, offset int32)
 
 func (s *StorageProducts) Product(ctx context.Context, productID int64) (*models.Product, error) {
 	const op = "storages.shopstorage.Product"
-	const query = "SELECT ProductID, Name, Price, Stock FROM products WHERE ProductID = $1"
+	const query = "SELECT product_id, name, price, stock FROM products WHERE product_id = $1"
 
 	var product models.Product
-	err := s.db.QueryRowContext(ctx, query, productID).Scan(&product.ProductID, &product.Name, &product.Price, &product.Stock)
+	err := s.db.GetContext(ctx, &product, query, productID)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -70,7 +73,7 @@ func (s *StorageProducts) Product(ctx context.Context, productID int64) (*models
 
 func (s *StorageProducts) ReserveProduct(ctx context.Context, userID, productID int64, quantity int32) (*models.Order, error) {
 	const op = "storages.shopstorage.ReserveProduct"
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -79,7 +82,7 @@ func (s *StorageProducts) ReserveProduct(ctx context.Context, userID, productID 
 	//Проверяем и блокируем товар
 	var price float64
 	var stock int32
-	err = tx.QueryRowContext(ctx, `SELECT price, stock FROM products WHERE id = $1 FOR UPDATE`, productID).Scan(&price, &stock)
+	err = tx.QueryRowContext(ctx, `SELECT price, stock FROM products WHERE product_id = $1 FOR UPDATE`, productID).Scan(&price, &stock)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, models.ErrProductNotFound
@@ -93,7 +96,7 @@ func (s *StorageProducts) ReserveProduct(ctx context.Context, userID, productID 
 	//Создаем резервацию
 	sum := price * float64(quantity)
 	var orderID int64
-	err = tx.QueryRowContext(ctx, `INSERT INTO orders (userID, productID, quantity, Sum, Status, Time) VALUES ($1, $2, $3, $4, 'reserved', $5) RETURNING ID`, userID, productID, quantity, sum, time.Now()).Scan(&orderID)
+	err = tx.QueryRowContext(ctx, `INSERT INTO orders (user_id, product_id, quantity, sum, status, time) VALUES ($1, $2, $3, $4, 'reserved', $5) RETURNING order_id`, userID, productID, quantity, sum, time.Now()).Scan(&orderID)
 	if err != nil {
 		if isDuplicateKeyError(err) {
 			return nil, models.ErrOrderAlreadyExists
@@ -102,7 +105,7 @@ func (s *StorageProducts) ReserveProduct(ctx context.Context, userID, productID 
 	}
 
 	//Обновляем остатки
-	_, err = tx.ExecContext(ctx, `UPDATE products SET stock = stock - $1 WHERE ID = $2`, quantity, productID)
+	_, err = tx.ExecContext(ctx, `UPDATE products SET stock = stock - $1 WHERE product_id = $2`, quantity, productID)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -122,24 +125,22 @@ func (s *StorageProducts) ReserveProduct(ctx context.Context, userID, productID 
 
 func (s *StorageProducts) ConfirmOrder(ctx context.Context, orderID int64) (*models.Order, error) {
 	const op = "storages.shopstorage.ConfirmOrder"
-	const query = "UPDATE orders SET status = 'confirmed' WHERE id = $1 AND status = 'reserved' RETURNING id, user_id, product_id, quantity, sum"
+	const query = "UPDATE orders SET status = 'confirmed' WHERE order_id = $1 AND status = 'reserved' RETURNING order_id, user_id, product_id, quantity, sum, status, time"
 
 	var order models.Order
-	err := s.db.QueryRowContext(ctx, query, time.Now(), orderID).Scan(&order.ID, &order.UserID, &order.ProductID, &order.Quantity, &order.Sum)
+	err := s.db.QueryRowContext(ctx, query, orderID).Scan(&order.ID, &order.UserID, &order.ProductID, &order.Quantity, &order.Sum, &order.Status, &order.Time)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, models.ErrOrderNotFound
 		}
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	order.Status = "confirmed"
-	order.Time = time.Now()
 	return &order, nil
 }
 
 func (s *StorageProducts) CancelReservation(ctx context.Context, orderID int64) error {
 	const op = "storages.shopstorage.CancelReservation"
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -148,7 +149,7 @@ func (s *StorageProducts) CancelReservation(ctx context.Context, orderID int64) 
 	//Получаем информацию о резервации
 	var productID int64
 	var quantity int32
-	err = tx.QueryRowContext(ctx, `SELECT product_id, quantity FROM products WHERE id = $1 AND status = 'reserved' FOR UPDATE`, orderID).Scan(&productID, &quantity)
+	err = tx.QueryRowContext(ctx, `SELECT product_id, quantity FROM products WHERE order_id = $1 AND status = 'reserved' FOR UPDATE`, orderID).Scan(&productID, &quantity)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.ErrOrderNotFound
@@ -157,13 +158,13 @@ func (s *StorageProducts) CancelReservation(ctx context.Context, orderID int64) 
 	}
 
 	//Возвращаем товар на склад
-	_, err = tx.ExecContext(ctx, `UPDATE products SET quantity = quantity + $1 WHERE ID = $2`, quantity, productID)
+	_, err = tx.ExecContext(ctx, `UPDATE products SET quantity = quantity + $1 WHERE product_id = $2`, quantity, productID)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	//Отменяем резервацию
-	_, err = tx.ExecContext(ctx, `UPDATE orders SET status = 'canceled' WHERE ID = $1`, orderID)
+	_, err = tx.ExecContext(ctx, `UPDATE orders SET status = 'canceled' WHERE order_id = $1`, orderID)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -175,7 +176,7 @@ func (s *StorageProducts) CancelReservation(ctx context.Context, orderID int64) 
 
 func (s *StorageProducts) GetOrderHistory(ctx context.Context, userID int64) ([]models.Order, error) {
 	const op = "storages.shopstorage.OrderHistory"
-	const query = "SELECT id, user_id, product_id, quantity, sum, status, order_time FROM orders WHERE user_id = $1 ORDER BY order_time DESC"
+	const query = "SELECT order_id, user_id, product_id, quantity, sum, status, time FROM orders WHERE user_id = $1 ORDER BY time DESC"
 	rows, err := s.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
@@ -186,7 +187,7 @@ func (s *StorageProducts) GetOrderHistory(ctx context.Context, userID int64) ([]
 	for rows.Next() {
 		var order models.Order
 		var time sql.NullTime
-		if err := rows.Scan(&order.ID, &order.UserID, &order.ProductID, &order.Quantity, &order.Sum, &time); err != nil {
+		if err := rows.Scan(&order.ID, &order.UserID, &order.ProductID, &order.Quantity, &order.Sum, &order.Status, &time); err != nil {
 			return nil, fmt.Errorf("%s: %w", op, err)
 		}
 		if time.Valid {
