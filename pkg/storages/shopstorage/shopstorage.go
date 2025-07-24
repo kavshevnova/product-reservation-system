@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/kavshevnova/product-reservation-system/pkg/domain/models"
 	"github.com/lib/pq"
+	"log"
 	"time"
 )
 
@@ -73,6 +74,10 @@ func (s *StorageProducts) Product(ctx context.Context, productID int64) (*models
 
 func (s *StorageProducts) ReserveProduct(ctx context.Context, userID, productID int64, quantity int32) (*models.Order, error) {
 	const op = "storages.shopstorage.ReserveProduct"
+
+	log.Printf("Reserving product for user %d, product %d, quantity %d",
+		userID, productID, quantity)
+
 	tx, err := s.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
@@ -96,7 +101,8 @@ func (s *StorageProducts) ReserveProduct(ctx context.Context, userID, productID 
 	//Создаем резервацию
 	sum := price * float64(quantity)
 	var orderID int64
-	err = tx.QueryRowContext(ctx, `INSERT INTO orders (user_id, product_id, quantity, sum, status, time) VALUES ($1, $2, $3, $4, 'reserved', $5) RETURNING order_id`, userID, productID, quantity, sum, time.Now()).Scan(&orderID)
+	now := time.Now()
+	err = tx.QueryRowContext(ctx, `INSERT INTO orders (user_id, product_id, quantity, sum, status, time) VALUES ($1, $2, $3, $4, 'reserved', $5) RETURNING order_id`, userID, productID, quantity, sum, now).Scan(&orderID)
 	if err != nil {
 		if isDuplicateKeyError(err) {
 			return nil, models.ErrOrderAlreadyExists
@@ -119,7 +125,7 @@ func (s *StorageProducts) ReserveProduct(ctx context.Context, userID, productID 
 		Quantity:  quantity,
 		Sum:       float32(sum),
 		Status:    "reserved",
-		Time:      time.Now(),
+		Time:      now,
 	}, nil
 }
 
@@ -149,7 +155,7 @@ func (s *StorageProducts) CancelReservation(ctx context.Context, orderID int64) 
 	//Получаем информацию о резервации
 	var productID int64
 	var quantity int32
-	err = tx.QueryRowContext(ctx, `SELECT product_id, quantity FROM products WHERE order_id = $1 AND status = 'reserved' FOR UPDATE`, orderID).Scan(&productID, &quantity)
+	err = tx.QueryRowContext(ctx, `SELECT product_id, quantity FROM orders WHERE order_id = $1 AND status = 'reserved' FOR UPDATE`, orderID).Scan(&productID, &quantity)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.ErrOrderNotFound

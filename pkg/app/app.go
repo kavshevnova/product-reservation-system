@@ -19,7 +19,7 @@ func New(
 	storagepath string,
 ) *App {
 
-	addr := "localhost:6379"
+	addr := "localhost:6380"
 	password := ""
 	db := 0
 

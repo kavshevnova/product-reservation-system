@@ -6,7 +6,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	_ "github.com/go-redis/redis/v8"
 	"github.com/kavshevnova/product-reservation-system/pkg/domain/models"
-	"time"
 )
 
 type StorageUsers struct {
@@ -16,19 +15,22 @@ type StorageUsers struct {
 func NewUsersStorage(addr, password string, db int) (*StorageUsers, error) {
 	const op = "storages.NewUsersStorage"
 
-	client := redis.NewClient(&redis.Options{
+	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
 		DB:       db,
 	})
 
-	//Проверяем подключение
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, fmt.Errorf("%s %s", op, err)
+	ctx := context.Background()
+	err := rdb.Set(ctx, "key", "value", 0).Err()
+	if err != nil {
+		panic(err)
 	}
-	return &StorageUsers{client: client}, nil
+
+	val, err := rdb.Get(ctx, "key").Result()
+	fmt.Println(val)
+
+	return &StorageUsers{rdb}, err
 }
 
 func (s *StorageUsers) SaveUser(ctx context.Context, email string, passhash []byte) (uid int64, err error) {
