@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Shop interface {
@@ -108,7 +107,7 @@ func (s *ShopServerAPI) GetOrdersHistory(ctx context.Context, req *shopv1.Orders
 			ProductId: orders.ProductID,
 			Quantity:  orders.Quantity,
 			Sum:       orders.Sum,
-			OrderTime: timestamppb.New(orders.Time),
+			OrderTime: orders.Time.Format("2006-01-02 15:04:05.999999999"),
 			Status:    orders.Status,
 		})
 	}

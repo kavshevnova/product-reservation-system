@@ -4,13 +4,12 @@
 // 	protoc        v5.29.3
 // source: shop/shop.proto
 
-package shopv1
+package shop
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -514,7 +513,7 @@ type Order struct {
 	ProductId     int64                  `protobuf:"varint,3,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
 	Quantity      int32                  `protobuf:"varint,4,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	Sum           float32                `protobuf:"fixed32,5,opt,name=sum,proto3" json:"sum,omitempty"`
-	OrderTime     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=order_time,json=orderTime,proto3" json:"order_time,omitempty"`
+	OrderTime     string                 `protobuf:"bytes,6,opt,name=order_time,json=orderTime,proto3" json:"order_time,omitempty"`
 	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -585,11 +584,11 @@ func (x *Order) GetSum() float32 {
 	return 0
 }
 
-func (x *Order) GetOrderTime() *timestamppb.Timestamp {
+func (x *Order) GetOrderTime() string {
 	if x != nil {
 		return x.OrderTime
 	}
-	return nil
+	return ""
 }
 
 func (x *Order) GetStatus() string {
@@ -691,7 +690,7 @@ var File_shop_shop_proto protoreflect.FileDescriptor
 
 const file_shop_shop_proto_rawDesc = "" +
 	"\n" +
-	"\x0fshop/shop.proto\x12\x04shop\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"C\n" +
+	"\x0fshop/shop.proto\x12\x04shop\x1a\x1bgoogle/protobuf/empty.proto\"C\n" +
 	"\x13ListProductsRequest\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06offset\x18\x02 \x01(\x05R\x06offset\"A\n" +
@@ -726,16 +725,16 @@ const file_shop_shop_proto_rawDesc = "" +
 	"\x14OrdersHistoryRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\"<\n" +
 	"\x15OrdersHistoryResponse\x12#\n" +
-	"\x06orders\x18\x01 \x03(\v2\v.shop.OrderR\x06orders\"\xd0\x01\n" +
+	"\x06orders\x18\x01 \x03(\v2\v.shop.OrderR\x06orders\"\xb4\x01\n" +
 	"\x05Order\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x1d\n" +
 	"\n" +
 	"product_id\x18\x03 \x01(\x03R\tproductId\x12\x1a\n" +
 	"\bquantity\x18\x04 \x01(\x05R\bquantity\x12\x10\n" +
-	"\x03sum\x18\x05 \x01(\x02R\x03sum\x129\n" +
+	"\x03sum\x18\x05 \x01(\x02R\x03sum\x12\x1d\n" +
 	"\n" +
-	"order_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\torderTime\x12\x16\n" +
+	"order_time\x18\x06 \x01(\tR\torderTime\x12\x16\n" +
 	"\x06status\x18\a \x01(\tR\x06status\"J\n" +
 	"\x13PaymentConfirmation\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x03R\aorderId\x12\x18\n" +
@@ -774,28 +773,26 @@ var file_shop_shop_proto_goTypes = []any{
 	(*Order)(nil),                  // 9: shop.Order
 	(*PaymentConfirmation)(nil),    // 10: shop.PaymentConfirmation
 	(*Empty)(nil),                  // 11: shop.Empty
-	(*timestamppb.Timestamp)(nil),  // 12: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),          // 13: google.protobuf.Empty
+	(*emptypb.Empty)(nil),          // 12: google.protobuf.Empty
 }
 var file_shop_shop_proto_depIdxs = []int32{
 	4,  // 0: shop.ListProductsResponse.products:type_name -> shop.Product
 	9,  // 1: shop.OrdersHistoryResponse.orders:type_name -> shop.Order
-	12, // 2: shop.Order.order_time:type_name -> google.protobuf.Timestamp
-	0,  // 3: shop.ShopService.ListProducts:input_type -> shop.ListProductsRequest
-	2,  // 4: shop.ShopService.GetProductInfo:input_type -> shop.GetProductInfoRequest
-	5,  // 5: shop.ShopService.MakeOrder:input_type -> shop.MakeOrderRequest
-	7,  // 6: shop.ShopService.GetOrdersHistory:input_type -> shop.OrdersHistoryRequest
-	10, // 7: shop.ShopService.ConfirmPayment:input_type -> shop.PaymentConfirmation
-	1,  // 8: shop.ShopService.ListProducts:output_type -> shop.ListProductsResponse
-	3,  // 9: shop.ShopService.GetProductInfo:output_type -> shop.GetProductInfoResponse
-	6,  // 10: shop.ShopService.MakeOrder:output_type -> shop.MakeOrderResponse
-	8,  // 11: shop.ShopService.GetOrdersHistory:output_type -> shop.OrdersHistoryResponse
-	13, // 12: shop.ShopService.ConfirmPayment:output_type -> google.protobuf.Empty
-	8,  // [8:13] is the sub-list for method output_type
-	3,  // [3:8] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	0,  // 2: shop.ShopService.ListProducts:input_type -> shop.ListProductsRequest
+	2,  // 3: shop.ShopService.GetProductInfo:input_type -> shop.GetProductInfoRequest
+	5,  // 4: shop.ShopService.MakeOrder:input_type -> shop.MakeOrderRequest
+	7,  // 5: shop.ShopService.GetOrdersHistory:input_type -> shop.OrdersHistoryRequest
+	10, // 6: shop.ShopService.ConfirmPayment:input_type -> shop.PaymentConfirmation
+	1,  // 7: shop.ShopService.ListProducts:output_type -> shop.ListProductsResponse
+	3,  // 8: shop.ShopService.GetProductInfo:output_type -> shop.GetProductInfoResponse
+	6,  // 9: shop.ShopService.MakeOrder:output_type -> shop.MakeOrderResponse
+	8,  // 10: shop.ShopService.GetOrdersHistory:output_type -> shop.OrdersHistoryResponse
+	12, // 11: shop.ShopService.ConfirmPayment:output_type -> google.protobuf.Empty
+	7,  // [7:12] is the sub-list for method output_type
+	2,  // [2:7] is the sub-list for method input_type
+	2,  // [2:2] is the sub-list for extension type_name
+	2,  // [2:2] is the sub-list for extension extendee
+	0,  // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_shop_shop_proto_init() }

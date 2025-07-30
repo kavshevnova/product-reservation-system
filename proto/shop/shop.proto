@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package shop;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
 option go_package = "kavshevnova.shop.v1;shopv1";
@@ -71,7 +70,7 @@ message Order {
   int64 product_id = 3;
   int32 quantity = 4;
   float sum = 5;
-  google.protobuf.Timestamp order_time = 6;
+  string order_time = 6;
   string status = 7;
 }
 
